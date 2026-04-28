@@ -19,6 +19,20 @@ const levelConfig = {
   }
 };
 
+// 10軸の定義
+const AXES = [
+  { key: 'repeatability',    label: '繰り返し性',           desc: '毎回同じ手順・ルールで実行できるか' },
+  { key: 'data_readiness',   label: 'データ整備度',         desc: 'データが定型・デジタルで揃っており取得しやすいか' },
+  { key: 'judgment',         label: '判断の複雑さ',         desc: 'ルール外の例外判断や裁量が少ないか' },
+  { key: 'communication',    label: '対人依存度',           desc: '外部の人との対話・交渉・関係構築が不要か' },
+  { key: 'recovery_cost',    label: 'ミスのリカバリコスト', desc: 'ミス発生時の修正・影響対応が軽微か' },
+  { key: 'frequency',        label: '年間作業頻度',         desc: '年間の発生回数が多いか（多いほど自動化効果大）' },
+  { key: 'volume',           label: '作業ボリューム',       desc: '1回あたりの作業時間・工数が大きいか' },
+  { key: 'tacit_knowledge',  label: '属人性の高さ',         desc: '特定担当者のスキル・経験・勘への依存が低いか' },
+  { key: 'verifiability',    label: '出力の検証しやすさ',   desc: 'AIの出力結果を人間が確認・修正しやすいか' },
+  { key: 'compliance',       label: '法的・コンプライアンスリスク', desc: 'AIが実行しても法的・規制上の問題が少ないか' },
+];
+
 // 現在の分析結果を保持
 let currentResult = null;
 
@@ -54,7 +68,12 @@ function generatePrompt() {
     return;
   }
   const cfg = levelConfig[getSelectedLevel()];
-  const prompt = `以下の企業・部署で行われていると想定される業務を列挙し、各業務へのAI導入効果スコアを算出してください。
+
+  const axesPrompt = AXES.map((a, i) =>
+    `  - axis${i+1}_${a.key}（${a.label}）: 0〜10の整数。${a.desc}`
+  ).join('\n');
+
+  const prompt = `あなたは業務分析の専門家です。以下の企業・部署で行われていると想定される業務を列挙し、各業務のAI導入効果を10の評価軸でそれぞれ0〜10点で採点し、合計点（0〜100点）を算出してください。
 
 企業・業種: ${company}
 部署名: ${dept}
@@ -62,16 +81,31 @@ function generatePrompt() {
 
 粒度の指示: ${cfg.detail}
 
+【評価軸（各0〜10点、合計100点満点）】
+${axesPrompt}
+
+採点基準：各軸10点＝AI導入に非常に有利、0点＝AI導入に非常に不利
+
 以下のJSON形式のみで回答してください。前置きや説明は不要です。
 
-{"tasks":[{"category":"業務カテゴリ名","name":"具体的な業務名","detail":"業務の簡単な説明（30字以内）","score":整数0〜100,"reason":"スコアの根拠（30字以内）"}]}
-
-スコア基準：
-- 90-100点：完全自動化可能
-- 70-89点：大部分をAI代替可能
-- 50-69点：AI支援で効率化
-- 30-49点：補助的なAI活用
-- 0-29点：AI効果が限定的
+{"tasks":[{
+  "category":"業務カテゴリ名",
+  "name":"具体的な業務名",
+  "detail":"業務の簡単な説明（30字以内）",
+  "axes":{
+    "axis1_repeatability":整数0〜10,
+    "axis2_data_readiness":整数0〜10,
+    "axis3_judgment":整数0〜10,
+    "axis4_communication":整数0〜10,
+    "axis5_recovery_cost":整数0〜10,
+    "axis6_frequency":整数0〜10,
+    "axis7_volume":整数0〜10,
+    "axis8_tacit_knowledge":整数0〜10,
+    "axis9_verifiability":整数0〜10,
+    "axis10_compliance":整数0〜10
+  },
+  "score":各軸の合計点（0〜100の整数）
+}]}
 
 業務は${cfg.count}程度、網羅的に列挙してください。`;
 
@@ -117,16 +151,21 @@ function renderFromPaste() {
     return;
   }
 
-  const tasks      = parsed.tasks;
+  // scoreが未設定の場合はaxesの合計で補完
+  const tasks = parsed.tasks.map(t => {
+    if (!t.score && t.axes) {
+      t.score = Object.values(t.axes).reduce((s, v) => s + v, 0);
+    }
+    return t;
+  });
+
   const company    = document.getElementById('company').value || '（企業名未入力）';
   const dept       = document.getElementById('dept').value    || '（部署名未入力）';
-  const level      = getSelectedLevel();
-  const cfg        = levelConfig[level];
+  const cfg        = levelConfig[getSelectedLevel()];
   const avg        = Math.round(tasks.reduce((s, t) => s + t.score, 0) / tasks.length);
   const high       = tasks.filter(t => t.score >= 70).length;
   const categories = [...new Set(tasks.map(t => t.category))].length;
 
-  // 結果をグローバルに保持（エクスポート用）
   currentResult = { tasks, company, dept, cfg, avg, high, categories };
 
   const sorted = [...tasks].sort((a, b) => b.score - a.score);
@@ -134,14 +173,24 @@ function renderFromPaste() {
   const rows = sorted.map(t => {
     const lbl   = getScoreLabel(t.score);
     const color = getScoreColor(t.score);
+
+    // 軸スコアの内訳ミニ表示
+    const axesHtml = t.axes ? AXES.map((a, i) => {
+      const key = `axis${i+1}_${a.key}`;
+      const val = t.axes[key] ?? '-';
+      return `<span class="axis-chip" title="${a.desc}">${a.label}：${val}</span>`;
+    }).join('') : '';
+
     return `
       <tr>
         <td>
           <div class="task-name">${t.name}</div>
           <div class="task-cat">${t.category}</div>
         </td>
-        <td><div class="task-detail">${t.detail}</div></td>
-        <td><div class="task-detail">${t.reason}</div></td>
+        <td>
+          <div class="task-detail">${t.detail}</div>
+          <div class="axes-wrap">${axesHtml}</div>
+        </td>
         <td>
           <div class="score-wrap">
             <div style="display:flex;align-items:center;gap:8px;">
@@ -171,15 +220,13 @@ function renderFromPaste() {
       <thead>
         <tr>
           <th>業務名</th>
-          <th>概要</th>
-          <th>スコア根拠</th>
+          <th>概要 ／ 評価軸内訳</th>
           <th>AI導入効果</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
     </table>`;
 
-  // エクスポートバーを表示
   document.getElementById('export-bar').classList.add('visible');
 }
 
@@ -199,13 +246,18 @@ function exportPDF() {
   const sorted = [...tasks].sort((a, b) => b.score - a.score);
   const now = new Date().toLocaleDateString('ja-JP');
 
+  const axesHeader = AXES.map(a => `<th>${a.label}</th>`).join('');
   const rows = sorted.map(t => {
     const lbl = getScoreLabel(t.score);
+    const axesCells = AXES.map((a, i) => {
+      const key = `axis${i+1}_${a.key}`;
+      return `<td style="text-align:center">${t.axes ? (t.axes[key] ?? '-') : '-'}</td>`;
+    }).join('');
     return `<tr>
       <td>${t.name}<br><span style="font-size:10px;color:#888">${t.category}</span></td>
       <td>${t.detail}</td>
-      <td>${t.reason}</td>
-      <td class="score-cell" style="color:${getScoreColor(t.score)};text-align:center;">${t.score}点（${lbl.text}）</td>
+      ${axesCells}
+      <td class="score-cell" style="color:${getScoreColor(t.score)};text-align:center;font-weight:700">${t.score}点（${lbl.text}）</td>
     </tr>`;
   }).join('');
 
@@ -219,9 +271,13 @@ function exportPDF() {
       <span class="print-chip">カテゴリ数：${categories}</span>
     </div>
     <table>
-      <thead><tr><th>業務名</th><th>概要</th><th>スコア根拠</th><th>AI導入効果</th></tr></thead>
+      <thead><tr><th>業務名</th><th>概要</th>${axesHeader}<th>合計スコア</th></tr></thead>
       <tbody>${rows}</tbody>
-    </table>`;
+    </table>
+    <div class="print-axes-legend">
+      <strong>【評価軸の説明】</strong><br>
+      ${AXES.map((a, i) => `${i+1}. ${a.label}：${a.desc}`).join('　／　')}
+    </div>`;
 
   window.print();
 }
@@ -231,8 +287,9 @@ function exportPDF() {
 // =============================================
 function exportExcel() {
   if (!currentResult) return;
-  const { tasks, company, dept, cfg, avg, high } = currentResult;
+  const { tasks, company, dept, cfg, avg, high, categories } = currentResult;
   const sorted = [...tasks].sort((a, b) => b.score - a.score);
+  const now = new Date().toLocaleDateString('ja-JP');
 
   // サマリーシート
   const summaryData = [
@@ -241,35 +298,46 @@ function exportExcel() {
     ['企業名・業種', company],
     ['部署名',       dept],
     ['粒度',         cfg.label],
-    ['出力日',       new Date().toLocaleDateString('ja-JP')],
+    ['出力日',       now],
     [],
-    ['業務数',           tasks.length],
-    ['平均スコア',       avg + '点'],
+    ['業務数',               tasks.length],
+    ['平均スコア',           avg + '点'],
     ['高効果業務（70点以上）', high + '件'],
+    ['カテゴリ数',           categories],
+    [],
+    ['【評価軸の説明】'],
+    ...AXES.map((a, i) => [`${i+1}. ${a.label}`, a.desc]),
   ];
 
-  // 業務一覧シート
-  const detailData = [
-    ['業務名', 'カテゴリ', '概要', 'スコア根拠', 'AI導入効果スコア', '評価'],
-    ...sorted.map(t => [
+  // 業務一覧シート（軸ごとのスコアも列に展開）
+  const axesHeaders = AXES.map(a => a.label);
+  const detailHeader = ['業務名', 'カテゴリ', '概要', ...axesHeaders, '合計スコア（/100）', '評価'];
+  const detailRows = sorted.map(t => {
+    const axesVals = AXES.map((a, i) => {
+      const key = `axis${i+1}_${a.key}`;
+      return t.axes ? (t.axes[key] ?? '') : '';
+    });
+    return [
       t.name,
       t.category,
       t.detail,
-      t.reason,
+      ...axesVals,
       t.score,
       getScoreLabel(t.score).text
-    ])
-  ];
+    ];
+  });
 
   const wb = XLSX.utils.book_new();
 
   const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
-  wsSummary['!cols'] = [{ wch: 24 }, { wch: 36 }];
+  wsSummary['!cols'] = [{ wch: 28 }, { wch: 40 }];
   XLSX.utils.book_append_sheet(wb, wsSummary, 'サマリー');
 
-  const wsDetail = XLSX.utils.aoa_to_sheet(detailData);
+  const wsDetail = XLSX.utils.aoa_to_sheet([detailHeader, ...detailRows]);
   wsDetail['!cols'] = [
-    { wch: 24 }, { wch: 16 }, { wch: 30 }, { wch: 30 }, { wch: 16 }, { wch: 10 }
+    { wch: 24 }, { wch: 16 }, { wch: 28 },
+    ...AXES.map(() => ({ wch: 14 })),
+    { wch: 18 }, { wch: 10 }
   ];
   XLSX.utils.book_append_sheet(wb, wsDetail, '業務一覧');
 

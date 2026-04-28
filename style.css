@@ -12,7 +12,7 @@ body {
 }
 
 .container {
-  max-width: 720px;
+  max-width: 760px;
   margin: 0 auto;
 }
 
@@ -42,8 +42,7 @@ label {
   font-weight: 500;
 }
 
-input[type="text"],
-textarea {
+input[type="text"], textarea {
   width: 100%;
   padding: 8px 10px;
   font-size: 14px;
@@ -53,12 +52,9 @@ textarea {
   font-family: inherit;
 }
 
-input[type="text"]:focus,
-textarea:focus {
-  border-color: #1a1a1a;
-}
+input[type="text"]:focus, textarea:focus { border-color: #1a1a1a; }
 
-/* ---- 粒度選択ボタン ---- */
+/* ---- 粒度選択 ---- */
 .granularity-group { margin-bottom: 12px; }
 
 .granularity-label {
@@ -69,10 +65,7 @@ textarea:focus {
   display: block;
 }
 
-.granularity-options {
-  display: flex;
-  gap: 8px;
-}
+.granularity-options { display: flex; gap: 8px; }
 
 .gran-option {
   flex: 1;
@@ -172,7 +165,7 @@ textarea:focus {
 
 .prompt-textarea {
   width: 100%;
-  height: 160px;
+  height: 180px;
   font-size: 12px;
   font-family: monospace;
   background: #f9f9f9;
@@ -274,8 +267,6 @@ textarea:focus {
   transition: all 0.15s;
 }
 
-.btn-export:hover { background: #f0f0f0; }
-
 .btn-pdf { border-color: #e0d0f0; color: #6b3fa0; background: #faf5ff; }
 .btn-pdf:hover { background: #f0e8ff; }
 
@@ -320,7 +311,7 @@ textarea:focus {
 table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: 13px;
   table-layout: fixed;
   margin-top: 0.5rem;
 }
@@ -335,10 +326,9 @@ th {
   color: #777;
 }
 
-th:nth-child(1) { width: 26%; }
-th:nth-child(2) { width: 20%; }
-th:nth-child(3) { width: 36%; }
-th:nth-child(4) { width: 18%; }
+th:nth-child(1) { width: 24%; }
+th:nth-child(2) { width: 54%; }
+th:nth-child(3) { width: 22%; }
 
 td { padding: 10px; vertical-align: top; }
 tr { border-bottom: 0.5px solid #eee; }
@@ -346,8 +336,25 @@ tr:last-child { border-bottom: none; }
 
 .task-name { font-weight: 600; font-size: 13px; color: #1a1a1a; }
 .task-cat { font-size: 11px; color: #888; margin-top: 2px; }
-.task-detail { font-size: 12px; color: #555; line-height: 1.5; }
-.task-reason { color: #aaa; font-size: 11px; margin-top: 3px; display: block; }
+.task-detail { font-size: 12px; color: #555; line-height: 1.5; margin-bottom: 6px; }
+
+/* ---- 軸スコアチップ ---- */
+.axes-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.axis-chip {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #f0f0f0;
+  color: #555;
+  cursor: default;
+  white-space: nowrap;
+}
 
 .score-wrap { display: flex; flex-direction: column; gap: 5px; }
 
@@ -379,7 +386,7 @@ tr:last-child { border-bottom: none; }
   border-radius: 8px;
 }
 
-/* ---- 印刷用スタイル ---- */
+/* ---- 印刷用 ---- */
 .print-only { display: none; }
 
 @media print {
@@ -390,17 +397,17 @@ tr:last-child { border-bottom: none; }
     position: absolute;
     top: 0; left: 0;
     width: 100%;
-    padding: 20px;
+    padding: 16px;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    font-size: 12px;
+    font-size: 10px;
     color: #1a1a1a;
   }
-  #print-area h2 { font-size: 16px; margin-bottom: 4px; }
-  #print-area .print-meta { font-size: 11px; color: #555; margin-bottom: 16px; }
-  #print-area .print-summary { display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
-  #print-area .print-chip { font-size: 11px; background: #f5f5f5; padding: 3px 10px; border-radius: 100px; }
-  #print-area table { width: 100%; border-collapse: collapse; font-size: 11px; }
-  #print-area th { background: #f5f5f5; padding: 6px 8px; text-align: left; border: 1px solid #ddd; font-size: 11px; }
-  #print-area td { padding: 6px 8px; border: 1px solid #eee; vertical-align: top; }
-  #print-area .score-cell { font-weight: 700; }
+  #print-area h2 { font-size: 15px; margin-bottom: 4px; }
+  #print-area .print-meta { font-size: 10px; color: #555; margin-bottom: 12px; }
+  #print-area .print-summary { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+  #print-area .print-chip { font-size: 10px; background: #f5f5f5; padding: 2px 8px; border-radius: 100px; }
+  #print-area table { width: 100%; border-collapse: collapse; font-size: 9px; }
+  #print-area th { background: #f5f5f5; padding: 4px 6px; text-align: center; border: 1px solid #ddd; }
+  #print-area td { padding: 4px 6px; border: 1px solid #eee; vertical-align: top; }
+  #print-area .print-axes-legend { margin-top: 12px; font-size: 9px; color: #555; line-height: 1.8; }
 }
